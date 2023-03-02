@@ -73,7 +73,7 @@ public class Parent {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (getClass() != o.getClass()) return false;
         Parent parent = (Parent) o;
         return id == parent.id && str.equals(parent.str) && detail.equals(parent.detail) && date.equals(parent.date) && Arrays.equals(array, parent.array) && map.equals(parent.map);
     }

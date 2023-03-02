@@ -1,7 +1,4 @@
-package ru.clevertec.customjson;
-
-import ru.clevertec.customjson.entity.Child;
-import ru.clevertec.customjson.entity.Detail;
+package ru.clevertec.customjson.entity;
 
 import java.util.Date;
 import java.util.List;
@@ -10,7 +7,7 @@ import java.util.Set;
 
 public class FactoryEntity {
     public static Child getEntity() {
-        List<Double> list1 = List.of(1.1);
+        List<Double> list1 = List.of(1.1,1.2);
         List<Double> list2 = List.of(2.1, 2.2);
         List<Double> list3 = List.of(3.1, 3.2, 3.3);
         List<String> list4 = List.of("4.1", "4.2", "4.3", "4.4");
@@ -24,8 +21,8 @@ public class FactoryEntity {
         Detail detail3 = new Detail(3, "detail3", true, list3, set3);
         Date date = new Date();
         String[] array = new String[]{"stroka1", null, "stroka3"};
-        Map<String, Detail> details = Map.of("d2", detail2, "d3", detail3);
+        Map<String, Detail> map = Map.of("d2", detail2, "d3", detail3);
         List<List<String>> listLists = List.of(list4, list5, list6);
-        return new Child(0, "parent", detail1, date, array, details, listLists, 's');
+        return new Child(0, "parent", detail1, date, array, null, listLists, 's');
     }
 }

@@ -65,7 +65,7 @@ public class Detail {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (getClass() != o.getClass()) return false;
         Detail detail = (Detail) o;
         return number == detail.number && flag == detail.flag && str.equals(detail.str) && list.equals(detail.list) && set.equals(detail.set);
     }

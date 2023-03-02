@@ -1,59 +1,29 @@
 package ru.clevertec.customjson.entity;
 
-import java.util.Date;
+import lombok.*;
+
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.Set;
 
+@NoArgsConstructor(staticName = "aChild")
+@Getter
+@Setter
+@EqualsAndHashCode
+@ToString
 public class Child extends Parent {
-    private List<List<String>> listLists;
-    private char aChar;
+    private String string;
+    private Double[] doubles;
+    private List<String> stringList;
+    private Set<Integer> integerSet;
 
-    public Child() {
-    }
-
-    public Child(int id, String str, Detail detail, Date date, String[] array, Map<String, Detail> map, List<List<String>> listLists, char aChar) {
-        super(id, str, detail, date, array, map);
-        this.listLists = listLists;
-        this.aChar = aChar;
-    }
-
-    public List<List<String>> getListLists() {
-        return listLists;
-    }
-
-    public void setListLists(List<List<String>> listLists) {
-        this.listLists = listLists;
-    }
-
-    public char getaChar() {
-        return aChar;
-    }
-
-    public void setaChar(char aChar) {
-        this.aChar = aChar;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        if (!super.equals(o)) return false;
-        Child child = (Child) o;
-        return aChar == child.aChar && listLists.equals(child.listLists);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(super.hashCode(), listLists, aChar);
-    }
-
-    @Override
-    public String toString() {
-        return "Child{" +
-                "listLists=" + listLists +
-                ", aChar=" + aChar +
-                super.toString() +
-                '}';
+    public void setParent(Parent parent) {
+        setABoolean(parent.isABoolean());
+        setAByte(parent.getAByte());
+        setAShort(parent.getAShort());
+        setAnInt(parent.getAnInt());
+        setALong(parent.getALong());
+        setADouble(parent.getADouble());
+        setAFloat(parent.getAFloat());
+        setAChar(parent.getAChar());
     }
 }

@@ -34,10 +34,10 @@ public class Child extends Parent {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (getClass() != o.getClass()) return false;
         if (!super.equals(o)) return false;
         Child child = (Child) o;
-        return aChar == child.aChar && listLists.equals(child.listLists);
+        return aChar == child.aChar;
     }
 
     @Override
@@ -49,7 +49,7 @@ public class Child extends Parent {
     public String toString() {
         return "Child{" +
                 "listLists=" + listLists +
-                ", aChar=" + aChar +
+                ", aChar=" + aChar +", "+
                 super.toString() +
                 '}';
     }
