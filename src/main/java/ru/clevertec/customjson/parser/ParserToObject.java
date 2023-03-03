@@ -5,224 +5,139 @@ import ru.clevertec.customjson.util.TypeClass;
 
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
+import static ru.clevertec.customjson.exception.Message.*;
 import static ru.clevertec.customjson.util.TypeClass.getTreeClasses;
 import static ru.clevertec.customjson.util.TypeClass.isImplementInterface;
-import static ru.clevertec.customjson.exception.Message.FAIL_FILL_FIELD;
 
 public class ParserToObject {
-    private static final String REGEX_FIELD = "\"%s\"[:]+((?=\\[)\\[[^]]*\\]|(?=\\{)\\{[^\\}]*\\}|\\\"[^\"]*\"|(?=\\d)\\d*.*?\\d*|(?=\\w)\\w*)";
+    private static final String REGEX_FIELD = "\"%s\"[:]+((?=\\[)\\[[^]]*\\]|(?=\\{)\\{[^\\}]*\\}|\\\"[^\"]*\"|(?=\\d)\\d*.*?\\d*,|(?=\\w)\\w*)";
     private static final String REGEX_ARRAY = "[\\[\\{].+[\\]\\}]";
+    private static final String END_OBJECT = "}";
+    private static final String BEGIN_OBJECT = "{";
+    private static final String FIELD_SEPARATOR = ",";
+    private static final String QUOTE = "\"";
+    private static final String NULL = "null";
 
     public <T> T parse(String json, Class<T> clazz) throws ParserException {
-        T object = null;
-        if (TypeClass.getType(clazz).isEmpty()) {
-            if (clazz.isArray()) {
-                return (T) recursionArray(json, clazz);
-            } else if (isImplementInterface(clazz, List.class)) {
-                return (T) recursionList(json, clazz);
-            } else if (isImplementInterface(clazz, Set.class)) {
-                return (T) recursionList(json, clazz).stream().collect(Collectors.toSet());
-            } else if (isImplementInterface(clazz, Map.class)) {
-                //// TODO
-            } else {
-                try {
-                    object = clazz.getDeclaredConstructor().newInstance();
-                } catch (Exception e) {
-                    throw new ParserException(String.format("Error %s when create object %s", e.getMessage(), clazz.getName()));
-                }
-                List<Field> fields = getTreeClasses(clazz).stream()
-                        .flatMap(c -> Arrays.stream(c.getDeclaredFields())).toList();
-                for (Field field : fields) {
-                    Matcher matcher = Pattern.compile(String.format(REGEX_FIELD, field.getName())).matcher(json);
-                    if (matcher.find()) {
-                        String group = matcher.group();
-                        if (TypeClass.getType(field.getType()).isEmpty()) {
-                            if (!"null".equals(matcher.group(1))) {
-                                group = json.substring(json.indexOf(group), getLastIndexField(json));
-                            }
-                            json = json.replace(group, "");
-                            try {
-                                fillField(field, object, group);
-                            } catch (IllegalAccessException e) {
-                                throw new ParserException(String.format(FAIL_FILL_FIELD, e.getMessage(), field.getName(), object));
-                            }
-                        } else {
-                            json = json.substring(json.indexOf(group) + group.length());
-                            String value = matcher.group(1);
-                            if (value.endsWith("\"") && value.startsWith("\"")) {
-                                value = value.substring(1, value.length() - 1);
-                            }
-                            Object ob = TypeClass.deserialize(value, field.getType());
-                            field.setAccessible(true);
-                            try {
-                                field.set(object, ob);
-                            } catch (IllegalAccessException e) {
-                                throw new ParserException(String.format(FAIL_FILL_FIELD, e.getMessage(), field.getName(), object));
-                            }
-                        }
-                    }
+        List<Field> fields = getTreeClasses(clazz).stream()
+                .flatMap(c -> Arrays.stream(c.getDeclaredFields())).toList();
+        try {
+            T object = clazz.getDeclaredConstructor().newInstance();
+            return (T) fillField(fields, json, object);
+        } catch (ReflectiveOperationException e) {
+            throw new ParserException(String.format(FAIL_READ_JSON, e.getMessage()));
+        }
+    }
+
+    private Object fillField(List<Field> fields, String json, Object object) throws ParserException, ReflectiveOperationException {
+        json = json.startsWith(BEGIN_OBJECT) && json.endsWith(END_OBJECT) ? json.substring(1, json.length() - 1) : json;
+        for (Field field : fields) {
+            Matcher matcher = Pattern.compile(String.format(REGEX_FIELD, field.getName().toLowerCase())).matcher(json);
+            if (matcher.find()) {
+                String group = matcher.group();
+                group = group.endsWith(FIELD_SEPARATOR) ? group.substring(0, group.length() - 1) : group;
+                if (TypeClass.getType(field.getType()).isEmpty()) {
+                    group = !NULL.equals(matcher.group(1)) ? json.substring(json.indexOf(group), getLastIndexField(json)) : group;
+                    json = json.replace(group, "");
+                    fillComplexType(field, object, group);
+                } else {
+                    json = json.substring(0, json.indexOf(group)) + json.substring(json.indexOf(group) + group.length());
+                    String value = matcher.group(1);
+                    value = value.endsWith(FIELD_SEPARATOR) ? value.substring(0, value.length() - 1) : value;
+                    value = value.endsWith(QUOTE) && value.startsWith(QUOTE) ? value.substring(1, value.length() - 1) : value;
+                    Object ob = TypeClass.deserialize(value, field.getType());
+                    field.setAccessible(true);
+                    field.set(object, ob);
                 }
             }
         }
         return object;
     }
 
-    private void fillField(Field field, Object o, String json) throws IllegalAccessException, ParserException {
+    private void fillComplexType(Field field, Object o, String json) throws ParserException, ReflectiveOperationException {
         Matcher matcher = Pattern.compile(REGEX_ARRAY).matcher(json);
-        if(matcher.find()) {
-            json = matcher.group(0);
-        }
-        Object result = null;
+        json = matcher.find() ? matcher.group(0) : json;
         field.setAccessible(true);
         if (field.getType().isArray()) {
-            result = recursionArray(json, field.getType());
-        } else if (isImplementInterface(field.getType(), List.class)) {
-            result = recursionList(json, field.getGenericType());
-        } else if (isImplementInterface(field.getType(), Set.class)) {
-            result = recursionList(json, field.getGenericType()).stream().collect(Collectors.toSet());
-        } else if (isImplementInterface(field.getType(), Map.class)) {
-            //// TODO
+            field.set(o, recursionArray(json, field.getType()));
+        } else if (isImplementInterface(field.getType(), Collection.class)) {
+            field.set(o, recursionList(json, field.getGenericType()));
         } else {
             field.set(o, parse(json, field.getType()));
-            return;
         }
-        field.set(o, result);
     }
 
-    private Collection recursionList(String json, Type type) {
-        Collection a = null;
+    private Collection<?> recursionList(String json, Type type) {
+        Collection<?> a = null;
         Type newType = ((ParameterizedType) type).getActualTypeArguments()[0];
         if (!(newType instanceof Class)) {
-            a = fillMultiList(json, type);
+            List<String> values = disassembleArray(json);
+            Object[] o = (Object[]) Array.newInstance(Collection.class, values.size());
+            AtomicInteger i = new AtomicInteger(0);
+            values.forEach(value -> Array.set(o, i.getAndIncrement(), recursionList(value, newType)));
+            a = Arrays.stream(o).toList();
         } else {
-            a = fillSingleList(json, type);
+            Class<?> generic = (Class<?>) ((ParameterizedType) type).getActualTypeArguments()[0];
+            a = Arrays.stream((Object[]) fillArray(json, generic)).toList();
         }
+        a = isImplementInterface((Class<?>) ((ParameterizedType) type).getRawType(), Set.class) ? new HashSet<>(a) : a;
         return a;
     }
 
-    private Object recursionArray(String json, Class clazz) {
-        Object a = null;
-        clazz = clazz.getComponentType();
-        if (clazz != null && clazz.isArray()) {
-            a = fillMultiArray(json, clazz);
+    private Object recursionArray(String json, Class<?> clazz) {
+        Class<?> c = clazz.getComponentType();
+        if (c != null && c.isArray()) {
+            List<String> values = disassembleArray(json);
+            Object o = Array.newInstance(c, values.size());
+            AtomicInteger i = new AtomicInteger(0);
+            values.forEach(value -> Array.set(o, i.getAndIncrement(), recursionArray(value, c)));
+            return o;
         } else {
-            a = fillSingleArray(json, clazz);
+            return fillArray(json, c == null ? Object.class : c);
         }
-        return a;
     }
 
-    private Collection fillMultiList(String json, Type type) {
-        Collection a = null;
-        json = json.substring(1, json.length() - 1);
-        List<String> values = new ArrayList();
-        int index = 0;
-        Type newType = ((ParameterizedType) type).getActualTypeArguments()[0];
-        do {
-            index = getLastIndexField(json);
-            String group = json.substring(0, index);
-            json = json.replace(group, "");
-            if (json.startsWith(",")) {
-                json = json.substring(1);
-            }
-            values.add(group);
-        } while (json.length() > 0);
-        int size = values.size();
-        a = Arrays.stream(((Object[]) Array.newInstance(Collection.class, size))).toList();
-        Object[] b = a.toArray();
-        for (int i = 0; i < size; i++) {
-            Array.set(b, i, recursionList(values.get(i), newType));
-        }
-        a = Arrays.stream(b).toList();
-        return a;
-    }
-
-    private Collection fillSingleList(String json, Type type) {
-        Collection a = null;
-        Class<?> generic = (Class<?>) ((ParameterizedType) type).getActualTypeArguments()[0];
-        List<String> values = new ArrayList<>(Arrays.asList(json.split(",")));
+    private Object fillArray(String json, Class<?> clazz) {
+        List<String> values = new ArrayList<>(Arrays.asList(json.split(FIELD_SEPARATOR)));
         values.set(0, values.get(0).substring(1));
         values.set(values.size() - 1, values.get(values.size() - 1).substring(0, values.get(values.size() - 1).length() - 1));
-        int size = values.size();
-        a = Arrays.stream(((Object[]) Array.newInstance(generic, size))).toList();
-        int i = 0;
-        Object[] b = a.toArray();
-        for (String value : values) {
-            if (value.endsWith(",")) {
-                value = value.substring(0, value.length() - 1);
-            }
-            if (value.endsWith("\"") && value.startsWith("\"")) {
-                value = value.substring(1, value.length() - 1);
-            }
-            Array.set(b, i, TypeClass.deserialize(value, generic));
-            i++;
-        }
-        a = Arrays.stream(b).toList();
-        return a;
+        Object result = Array.newInstance(clazz, values.size());
+        AtomicInteger i = new AtomicInteger(0);
+        values.forEach(v -> {
+            v = v.endsWith(FIELD_SEPARATOR) ? v.substring(0, v.length() - 1) : v;
+            v = v.endsWith(QUOTE) && v.startsWith(QUOTE) ? v.substring(1, v.length() - 1) : v;
+            Array.set(result, i.getAndIncrement(), TypeClass.deserialize(v, clazz));
+        });
+        return result;
     }
 
-    private Object fillMultiArray(String json, Class clazz) {
-        Object a;
-        json = json.substring(1, json.length() - 1);
-        List<String> values = new ArrayList();
-        int index = 0;
+    private List<String> disassembleArray(String array) {
+        List<String> values = new ArrayList<>();
+        array = array.substring(1, array.length() - 1);
         do {
-            index = getLastIndexField(json);
-            String group = json.substring(0, index);
-            json = json.replace(group, "");
-            if (json.startsWith(",")) {
-                json = json.substring(1);
-            }
+            String group = array.substring(0, getLastIndexField(array));
+            array = array.replace(group, "");
+            array = array.startsWith(FIELD_SEPARATOR) ? array.substring(1) : array;
             values.add(group);
-        } while (json.length() > 0);
-        int size = values.size();
-        a = Array.newInstance(clazz, size);
-        for (int i = 0; i < size; i++) {
-            Array.set(a, i, recursionArray(values.get(i), clazz));
-        }
-        return a;
-    }
-
-    private Object fillSingleArray(String json, Class clazz) {
-        Object a;
-        List<String> values = new ArrayList<>(Arrays.asList(json.split(",")));
-        values.set(0, values.get(0).substring(1));
-        values.set(values.size() - 1, values.get(values.size() - 1).substring(0, values.get(values.size() - 1).length() - 1));
-        int size = values.size();
-        if (clazz == null) {
-            clazz = Object.class;
-        }
-        a = Array.newInstance(clazz, size);
-        int i = 0;
-        for (String value : values) {
-            if (value.endsWith(",")) {
-                value = value.substring(0, value.length() - 1);
-            }
-            if (value.endsWith("\"") && value.startsWith("\"")) {
-                value = value.substring(1, value.length() - 1);
-            }
-            Array.set(a, i, TypeClass.deserialize(value, clazz));
-            i++;
-        }
-        return a;
+        } while (array.length() > 0);
+        return values;
     }
 
     private int getLastIndexField(String json) {
         int count = -1;
         char[] charArray = json.toCharArray();
-        char symbol;
         int i = 0;
         while (count != 0) {
-            symbol = charArray[i];
-            if (symbol == '{' || symbol == '[') {
+            if (charArray[i] == '{' || charArray[i] == '[') {
                 if (count == -1) {
                     count = 0;
                 }
                 count++;
-            } else if (symbol == '}' || symbol == ']') {
+            } else if (charArray[i] == '}' || charArray[i] == ']') {
                 count--;
             }
             i++;

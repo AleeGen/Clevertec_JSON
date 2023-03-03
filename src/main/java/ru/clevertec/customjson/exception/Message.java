@@ -4,7 +4,7 @@ public final class Message {
     private Message() {
     }
 
-    public static final String FAIL_FILL_FIELD = "Error \"%s\" when filling in the field \"%s\" of object \"%s\"";
-    public static final String FAIL_GET_VALUE_FIELD = "Error \"%s\" when parsing an field: \"%s\"";
+    public static final String FAIL_READ_JSON = "Error \"%s\" converting json to object";
+    public static final String FAIL_WRITE_JSON = "Error \"%s\" converting object to json";
 
 }

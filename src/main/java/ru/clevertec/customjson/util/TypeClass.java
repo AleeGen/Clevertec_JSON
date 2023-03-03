@@ -4,7 +4,9 @@ import java.util.*;
 import java.util.function.Function;
 
 public enum TypeClass {
-    //Можно добавлять другие неделимые типы, чтобы реализовать их сериализацию/десериализацию
+    /**
+     * You can add other indivisible types to implement their serialization and deserialization
+     */
     BYTE(byte.class, Object::toString, Byte::parseByte),
     SHORT(short.class, Object::toString, Short::parseShort),
     INT(int.class, Object::toString, Integer::parseInt),
@@ -35,10 +37,7 @@ public enum TypeClass {
     }
 
     public static Optional<String> serialize(Object o) {
-        if (o == null) {
-            return Optional.of("null");
-        }
-        return getType(o.getClass()).map(typeClass -> typeClass.serializeFunction.apply(o));
+        return o == null ? Optional.of("null") : getType(o.getClass()).map(typeClass -> typeClass.serializeFunction.apply(o));
     }
 
     public static Object deserialize(String str, Class<?> clazz) {
@@ -46,28 +45,18 @@ public enum TypeClass {
     }
 
     public static boolean isImplementInterface(Class<?> actual, Class<?> expected) {
-        if (actual == null || actual == Object.class) {
-            return false;
-        }
-        if (actual == expected) {
-            return true;
-        }
-        return Arrays.stream(actual.getInterfaces())
-                .anyMatch(o -> isImplementInterface(o, expected)) || isImplementInterface(actual.getSuperclass(), expected);
+        return actual != null && actual != Object.class && (actual == expected || Arrays.stream(actual.getInterfaces())
+                .anyMatch(o -> isImplementInterface(o, expected)) || isImplementInterface(actual.getSuperclass(), expected));
     }
 
     public static List<Class<?>> getTreeClasses(Class<?> clazz) {
         List<Class<?>> classes = new ArrayList<>();
         if (clazz.isPrimitive()) {
-            classes.add(clazz);
-            return classes;
+            return List.of(clazz);
         }
-        while (clazz != Object.class) {
+        while (clazz != Object.class && clazz != null) {
             classes.add(clazz);
             clazz = clazz.getSuperclass();
-            if (clazz == null) {
-                break;
-            }
         }
         Collections.reverse(classes);
         return classes;
@@ -78,4 +67,5 @@ public enum TypeClass {
                 .filter(typeClass -> getTreeClasses(o).contains(typeClass.clazz) ||
                         isImplementInterface(o, typeClass.clazz)).findFirst();
     }
+
 }
