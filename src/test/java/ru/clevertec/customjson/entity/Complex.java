@@ -6,7 +6,7 @@ import lombok.*;
 import java.util.List;
 import java.util.Set;
 
-@NoArgsConstructor(staticName = "aComplex")
+@NoArgsConstructor
 @Getter
 @Setter
 @EqualsAndHashCode
@@ -15,5 +15,7 @@ public class Complex {
     private List<List<String>> listList;
     private Boolean[][] booleans;
     private Set<Set<Character>> sets;
+    private List<Set<String>> listSet;
     private Child child;
+
 }

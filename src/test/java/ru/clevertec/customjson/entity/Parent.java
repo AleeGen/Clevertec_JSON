@@ -2,7 +2,7 @@ package ru.clevertec.customjson.entity;
 
 import lombok.*;
 
-@NoArgsConstructor(staticName = "aParent")
+@NoArgsConstructor
 @Getter
 @Setter
 @EqualsAndHashCode

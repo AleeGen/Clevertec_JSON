@@ -22,7 +22,7 @@ public class ParentBuilder implements EntityBuilder<Parent> {
 
     @Override
     public Parent build() {
-        final Parent parent = Parent.aParent();
+        final Parent parent = new Parent();
         parent.setABoolean(aBoolean);
         parent.setAByte(aByte);
         parent.setAShort(aShort);

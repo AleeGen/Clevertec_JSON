@@ -2,16 +2,18 @@ package ru.clevertec.customjson.entity;
 
 import lombok.*;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
-@NoArgsConstructor(staticName = "aChild")
+@NoArgsConstructor
 @Getter
 @Setter
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = true)
 @ToString
 public class Child extends Parent {
     private String string;
+    private Date date;
     private Double[] doubles;
     private List<String> stringList;
     private Set<Integer> integerSet;
